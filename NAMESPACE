@@ -1,0 +1,5 @@
+export(sor)
+import(Matrix)
+S3method(summary,sor)
+S3method(print,sor)
+S3method(print,summary.sor)
