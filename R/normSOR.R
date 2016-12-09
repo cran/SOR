@@ -10,7 +10,8 @@ norm.SOR <- function(y.formula,
                      init.beta=NULL,
                      init.sig.2 = 1,
                      est.var = T,
-                     CORSTR="independence"){
+                     CORSTR="independence",
+                     weights=weights){
   #print(pi1.pi0.ratio)
   sigma.2 <- init.sig.2
 
@@ -24,7 +25,7 @@ norm.SOR <- function(y.formula,
   maxtime <- max(obspersubj)
   pi1.pi0.ratio <- DAT.ods$pi.ratio
   
-  aux <- fitz(DAT.ods, w1.formula, w2.formula, y.formula, hfunc)
+  aux <- fitz(DAT.ods, w1.formula, w2.formula, y.formula, hfunc, weights=weights)
 
   mod.z <- aux$mod.z
   W1 <- aux$W1
@@ -107,11 +108,11 @@ norm.SOR <- function(y.formula,
   
   if(est.var){
     f.sig <- function(sigma.2, mu.p){
-      sum((Y-mu.p)^2) - sum(y.minus.mu.2(sigma.2, mu.p)/normalize(sigma.2, mu.p))
+      sum(weights*(Y-mu.p)^2) - sum(weights*y.minus.mu.2(sigma.2, mu.p)/normalize(sigma.2, mu.p))
     }
     
     df.sig <- function(sigma.2, mu.p){
-      -(1/(2*sigma.2^2))*(sum(y.minus.mu.4(sigma.2, mu.p)/normalize(sigma.2, mu.p)) + (1/(2*sigma.2^2))*sum((y.minus.mu.2(sigma.2, mu.p)^2)/(normalize(sigma.2, mu.p)^2)))
+      -(1/(2*sigma.2^2))*(sum(weights*y.minus.mu.4(sigma.2, mu.p)/normalize(sigma.2, mu.p)) + (1/(2*sigma.2^2))*sum(weights*(y.minus.mu.2(sigma.2, mu.p)^2)/(normalize(sigma.2, mu.p)^2)))
       
     }
     sigstop <- F
@@ -126,11 +127,12 @@ norm.SOR <- function(y.formula,
         ymat <- apply(matrix(rep(y, nobs), nrow=nobs, byrow=T), 2, "-", y0)
         etaymat <- apply(ymat, 2, "*", eta)
         referencedist <- -(1/2)*(matrix(rep(y^2, nobs), nrow=nobs, byrow=T)) + (1/2)*(y0^2)
-        exp( etaymat/sigma.2 + referencedist/sigma.2 + rhomat )
+        exp( weights* (etaymat/sigma.2 + referencedist/sigma.2 + rhomat ))
+        #exp(weights* (etaymat/phi + referencedist/phi + rhomat ))
       }
       
       
-      mod.y <- geemR(y.formula, family=FunList, id = id, data=DAT.ods, corstr = CORSTR, Mv = 1, init.beta=init.beta, tol=1e-6, scale.fix=T, init.phi=sigma.2)
+      mod.y <- geemR(y.formula, family=FunList, id = id, data=DAT.ods, corstr = CORSTR, Mv = 1, init.beta=init.beta, tol=1e-6, scale.fix=T, init.phi=sigma.2, weights=weights)
       
       #### SOLVE NEWTON RAPHSON
       
@@ -150,13 +152,13 @@ norm.SOR <- function(y.formula,
     ymat <- apply(matrix(rep(y, nobs), nrow=nobs, byrow=T), 2, "-", y0)
     etaymat <- apply(ymat, 2, "*", eta)
     referencedist <- -(1/2)*(matrix(rep(y^2, nobs), nrow=nobs, byrow=T)) + (1/2)*(y0^2)
-    exp( etaymat/sigma.2 + referencedist/sigma.2 + rhomat )
+    exp( weights*(etaymat/sigma.2 + referencedist/sigma.2 + rhomat ))
   }
   
   
   
   
-  mod.y <- geemR(y.formula, family=FunList, id = id, data=DAT.ods, corstr = CORSTR, Mv = 1, init.beta=init.beta, tol=1e-6, scale.fix=T, init.phi=sigma.2)
+  mod.y <- geemR(y.formula, family=FunList, id = id, data=DAT.ods, corstr = CORSTR, Mv = 1, init.beta=init.beta, tol=1e-6, scale.fix=T, init.phi=sigma.2, weights=weights)
   
   se.coefs <- getvar(mod.z, mod.y, odds.s.y, VarFun, Y,"c", hfunc, support, F.y, Fy0, y0, W1, W2, obspersubj)
   

@@ -3,7 +3,8 @@ binom.SOR <- function(y.formula,
                       w2.formula,
                       data,
                       init.beta=NULL,
-                      CORSTR="independence"){
+                      CORSTR="independence",
+                      weights=weights){
   
   y0 <- 0
   support <- c(0,1)
@@ -16,7 +17,7 @@ binom.SOR <- function(y.formula,
   maxtime <- max(obspersubj)
   pi1.pi0.ratio <- DAT.ods$pi.ratio
   
-  aux <- fitz(DAT.ods, w1.formula, w2.formula, y.formula, hfunc)
+  aux <- fitz(DAT.ods, w1.formula, w2.formula, y.formula, hfunc, weights=NULL)
   
   mod.z <- aux$mod.z
   W1 <- aux$W1
@@ -45,14 +46,15 @@ binom.SOR <- function(y.formula,
   F.y <- Fy(lpy, pi1.pi0.ratio)
   
   rhooff <- log(rho.y[,2]/rho.y[,1])
-  
-  y.formula.offset <- formula(paste(deparse(y.formula), "+offset(rhooff)"))
+  DAT.ods$rhooff <- rhooff
+  #y.formula.offset <- formula(paste(deparse(y.formula, width=500, nlines=1), "+offset(rhooff)"))
+  #y.formula.offset <- formula(paste(deparse(y.formula), "+offset(rhooff)"))
   
   
   # Run through geemR to calculate coefficients
-  if(is.null(init.beta)) init.beta <- glm(y.formula.offset, family=binomial, data=DAT.ods )$coefficients
+  if(is.null(init.beta)) init.beta <- glm(y.formula, family=binomial, data=DAT.ods, offset=rhooff )$coefficients
   
-  mod.y <- geem(y.formula.offset, family=binomial, id = id, data=DAT.ods, corstr = CORSTR, init.beta = init.beta, scale.fix=T, init.phi=1)
+  mod.y <- geem(y.formula, family=binomial, id = id, data=DAT.ods, corstr = CORSTR, init.beta = init.beta, scale.fix=T, init.phi=1, offset=rhooff, weights=weights)
   
   VarFun <- function(eta) expit(eta)*(1-expit(eta))
   

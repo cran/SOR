@@ -7,13 +7,14 @@
 Sequentially Offsetted Regression
 }
 \description{
-Fits model for data which was sampled based on a variable associated to the outcome.  This function works for binary, count, and continuous responses.
+Fits model for data which was sampled based on a variable associated with the outcome.  This function works for binary, count, and continuous responses.
 }
 \usage{
 	    sor(y.formula,
               	w1.formula,
                 w2.formula = ~1,
                 id,
+                waves = NULL,
                 family = "binomial",
                 y0 = 0,
                 hfunc = identity, 
@@ -22,6 +23,7 @@ Fits model for data which was sampled based on a variable associated to the outc
                 data = parent.frame(),
                 init.beta=NULL,
                 init.sig.2 = 1,
+                weights=NULL,
                 est.var = TRUE,
                 CORSTR="independence")
 }
@@ -37,7 +39,10 @@ Formula for Z, not interacted with hfunc(Y).  Of form Z~terms
 Formula for Z, interacted with hfunc(Y).  Of form ~terms
 }
   \item{id}{
-Cluster identifiers
+a vector identifying the clusters. By default, data are assumed to be sorted such that observations in a cluster are in consecutive rows and higher numbered rows in a cluster are assumed to be later.  If NULL, then each observation is assigned its own cluster.
+}
+  \item{waves}{
+an integer vector identifying components of a cluster. For example, this could be a time ordering. If integers are skipped within a cluster, then dummy rows with weight 0 are added in an attempt to preserve the correlation structure (except if \code{corstr = "exchangeable"} or \code{"independent"}). This can be skipped by setting \code{nodummy=TRUE}.
 }
   \item{family}{
 Character string representing reference distribution for the response.  Can be one of "normal", "poisson", or "binomial".
@@ -64,6 +69,9 @@ Initial values for parameters in \code{y.formula}.  Convergence may depend heavi
   \item{init.sig.2}{
 Initial value for sigma^2.  Only for \code{family="normal"}.
 }
+  \item{weights}{
+  A vector of weights for each observation.  If an observation has weight 0, it is excluded from the calculations of any parameters.  Observations with a \code{NA} anywhere (even in variables not included in the model) will be assigned a weight of 0.  This should normally be used to preserve the correlation structure.
+}
   \item{est.var}{
 Logical.  Should the variance be estimated.  Only for \code{family="normal"}.
 }
@@ -75,9 +83,11 @@ Correlation structure
 Returns a list with values from the fit.
 %% ...
 }
-%\references{
-%% ~put references to the literature/web site here ~
-%}
+\references{
+This package relies heavily on code from geeM:
+
+McDaniel, L. S., Henderson, N. C., & Rathouz, P. J. (2013). Fast pure R implementation of GEE: application of the matrix package. The R journal, 5(1), 181.
+}
 \author{
 Lee S. McDaniel, Jonathan S. Schildcrout
 %%  ~~who you are~~
@@ -87,8 +97,6 @@ Lee S. McDaniel, Jonathan S. Schildcrout
 %% ~Make other sections like Warning with \section{Warning }{....} ~
 
 \examples{
-
-set.seed(563624)
 generatedata <- function(beta,alpha,X,ntime,nsubj, betat, betat1)  {
   
   mean.vec <- exp(crossprod(t(X), beta))
@@ -115,14 +123,15 @@ generatedata <- function(beta,alpha,X,ntime,nsubj, betat, betat1)  {
 }
 logit <- function(p) log(p)-log(1-p)
 expit <- function(x) exp(x)/(1+exp(x))
+set.seed(1)
 
-npop <- 100000
+npop <- 10000
 beta0 <- -1.4
 beta1 <- 0.4
 alpha <- 0.9
 gam0 <- -3.15
 gam1 <- 6.3
-nsubj <- 300
+nsubj <- 200
 ntime <- 8
 betat <- -0.1; betat1 <- 0.1
 thresh <- 1

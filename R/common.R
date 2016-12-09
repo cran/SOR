@@ -64,7 +64,7 @@ int <- function(input, points, type){
 }
 
 
-fitz <- function(DAT.ods, w1.formula, w2.formula, y.formula, hfunc){
+fitz <- function(DAT.ods, w1.formula, w2.formula, y.formula, hfunc, weights){
   nobs <- length(DAT.ods$id)
   terms.w1 <- terms(w1.formula, data=DAT.ods)
   w1.matrix <- model.matrix(w1.formula, data=DAT.ods)[,-1]
@@ -95,7 +95,7 @@ fitz <- function(DAT.ods, w1.formula, w2.formula, y.formula, hfunc){
   
   optval <- getOption("warn")
   options(warn=-1)
-  mod.z            <- glm(z.formula.offset,  data=z.df, family=binomial, x=T)
+  mod.z            <- glm(z.formula.offset,  data=z.df, weights=weights, family=binomial, x=T)
   options(warn=optval)
   
   W1 <- as.matrix(cbind("intercept" = rep(1, nobs), w1.matrix))
@@ -142,7 +142,7 @@ dmudgamma2 <- function(eta, support, F.y, Fy0, odds.s.y, type, W2, mu.s, hfunc, 
 
 
 
-getvar <- function(mod.z, mod.y, odds.s.y, VarFun, Y, type, hfunc, support, F.y, Fy0, y0, W1, W2, obspersubj){
+getvar <- function(mod.z, mod.y, odds.s.y, VarFun, Y, type, hfunc, support, F.y, Fy0, y0, W1, W2, obspersubj){#, weights){
   
   mu.s <- fitted(mod.y)
   nobs <- length(mu.s)
@@ -173,6 +173,7 @@ getvar <- function(mod.z, mod.y, odds.s.y, VarFun, Y, type, hfunc, support, F.y,
   bigA <- VarFun(mod.y$eta)
   
   bigT <- apply(W, 2, "*", Z-lambda.s)
+  
   bigU <- t(crossprod( Diagonal(x=sqrt(bigA)) %*%X, R.a.inv %*% Diagonal(x=1/sqrt(bigA)) %*% Diagonal(x=Y-mu.s) ))*sca.param
   
   
@@ -188,8 +189,8 @@ getvar <- function(mod.z, mod.y, odds.s.y, VarFun, Y, type, hfunc, support, F.y,
   BDiag <- getBlockDiag(obspersubj)$BDiag
   bigTU <- cBind(bigT, bigU)
   Q <- crossprod(bigTU, BDiag) %*% bigTU
+  #Q <- crossprod(bigTU, BDiag) %*% Diagonal(x=weights) %*% bigTU
   ITTBDiag <- getBlockDiag(rep(p.z, nobs))$BDiag
-  
   
   longW <- as.vector(t(W))
   diagones <- matrix(rep(as.vector(Diagonal(x=rep(1, p.z))), nobs), ncol=p.z, byrow=T)
@@ -198,10 +199,12 @@ getvar <- function(mod.z, mod.y, odds.s.y, VarFun, Y, type, hfunc, support, F.y,
   ITT <-  crossprod(diagones, Diagonal(x=longW) %*% ITTBDiag %*% lamdiag %*% Diagonal(x=longW) %*% diagones)
   
   IUU <- crossprod(Adiag %*% X, R.a.inv %*% Adiag %*% X)
+  #IUU <- crossprod(Adiag %*% X, R.a.inv %*% Diagonal(x=weights) %*% Adiag %*% X)
   
   dgam.mat <- cbind(dmdg1, dmdg2)
   
   IUT <- sca.param*crossprod(Adiag %*% X, R.a.inv %*% solve(Adiag) %*% dgam.mat)
+  #IUT <- sca.param*crossprod(Adiag %*% X, R.a.inv %*% Diagonal(x=weights) %*% solve(Adiag) %*% dgam.mat)
   ITU  <- matrix(0, p.z, p.y)
   I    <- rbind(cbind(as.matrix(ITT), ITU), cbind(as.matrix(IUT), as.matrix(IUU)))  
   
@@ -210,3 +213,41 @@ getvar <- function(mod.z, mod.y, odds.s.y, VarFun, Y, type, hfunc, support, F.y,
   AVAR <- t(solve(I, t(IQinv)))
   return(sqrt(diag(AVAR)[(p.z+1):(p.z+p.y)])) 
 }
+
+dummyrows <- function(formula, dat, incomp, maxwave, wavespl, idspl){
+  missing <- missid <- misswave <- rep(0, sum(maxwave))
+  index <- 1
+  for(i in 1:length(wavespl)){
+    wa <- wavespl[[i]]
+    index <- index+1
+    for(j in 2:length(wa)){
+      wdiff <- wa[j] - wa[j-1] -1
+      if(wdiff > 0){
+        missing[index:(index+wdiff-1)] <- (wa[j-1]+1):(wa[j]-1)
+        missid[index:(index+wdiff-1)] <- idspl[[i]][1]
+      }
+      index <- index+wdiff+1
+    }
+  }
+  dat2 <- as.data.frame(matrix(nrow=sum(maxwave), ncol=dim(dat)[2]))
+  colnames(dat2) <- colnames(dat)
+  dat2[missing==0,] <- dat
+  dat2$id[missing > 0] <- missid[missing>0]
+  
+  dat2$weights[missing > 0] <- 0
+  dat2$waves[missing > 0] <- missing[missing > 0]
+  
+  NAcols <- which(!is.element(names(dat2), c("id", "waves", "weights")))
+  
+  for(i in NAcols){
+    dat2[missing>0, i] <- median(dat2[,i], na.rm=TRUE)
+  }
+  
+  #retdat <- model.frame(formula, dat2, na.action=na.pass)
+  retdat <- dat2
+  retdat$id <- dat2$id
+  retdat$weights <- dat2$weights
+  retdat$waves <- dat2$waves
+  return(retdat)
+}
+

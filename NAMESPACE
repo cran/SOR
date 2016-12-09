@@ -3,3 +3,7 @@ import(Matrix)
 S3method(summary,sor)
 S3method(print,sor)
 S3method(print,summary.sor)
+importFrom("methods", "as")
+importFrom("stats", "binomial", "fitted", "formula", "gaussian", "glm",
+             "median", "model.frame", "model.matrix", "model.offset",
+             "model.response", "na.pass", "pnorm", "predict", "terms")
