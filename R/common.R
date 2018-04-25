@@ -187,7 +187,7 @@ getvar <- function(mod.z, mod.y, odds.s.y, VarFun, Y, type, hfunc, support, F.y,
   Adiag <- Diagonal(x=sqrt(bigA))
   
   BDiag <- getBlockDiag(obspersubj)$BDiag
-  bigTU <- cBind(bigT, bigU)
+  bigTU <- cbind(bigT, bigU)
   Q <- crossprod(bigTU, BDiag) %*% bigTU
   #Q <- crossprod(bigTU, BDiag) %*% Diagonal(x=weights) %*% bigTU
   ITTBDiag <- getBlockDiag(rep(p.z, nobs))$BDiag
